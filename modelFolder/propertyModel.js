@@ -1,5 +1,3 @@
-//  Milestone 1.3: Define Property schema
-
 const mongoose = require("mongoose");
 
 const propertySchema = new mongoose.Schema(
@@ -18,6 +16,11 @@ const propertySchema = new mongoose.Schema(
     },
     agent: {
       type: mongoose.Schema.Types.ObjectId,
+      required: true,
+    },
+    listingType: {
+      type: String,
+      enum: ['sale', 'lease', 'rent'],
       required: true,
     },
   },
