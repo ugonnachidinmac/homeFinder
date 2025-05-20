@@ -6,6 +6,14 @@ const jwt = require('jsonwebtoken');
 
 const Property = require("./modelFolder/propertyModel")
 const User = require("./modelFolder/userModel");
+const { sendForgotPasswordEmail, validEmail } = require("./sendMail");
+const { handleGetAllUsers, handleUserRegistration } = require("./Controllers");
+const { validateRegister, authorization } = require("./middleware");
+const { saveProperty, unsaveProperty } = require('./Controllers/savedPropertyController');
+const { authorizeUser } = require('./middleware/authMiddleware');
+const { getAllProperties, getPropertyById } = require('./Controllers/propertyController');
+
+
 
 
 dotenv.config();
@@ -23,116 +31,41 @@ mongoose.connect(process.env.MONGODB_URL)
   })
   .catch(err => console.error("MongoDB connection failed:", err));
 
+
+
 //  Milestone 1.1: Setup user roles (agent and regular user)
-app.post("/sign-up", async (req, res) => {
-    try {
-      const { username, email, password, role } = req.body;
-  
-      // Validate required fields
-      if (!username || typeof username !== "string") return res.status(400).json({ 
-        message: "Please add your username" });
-      if (!email  || typeof email !== "string") return res.status(400).json({
-         message: "Please add your email" });
-      if (!password || typeof password !== "string") return res.status(400).json({ 
-        message: "Please enter password" });
-      if (password.length < 8) return res.status(400).json({ 
-        message: "Password should be a min of 8 chars" });
-  
-      // Check if email or username already exists
-      const existingUserByEmail = await User.findOne({ email });
-      if (existingUserByEmail) return res.status(400).json({ 
-        message: "Email already in use" });
-  
-      const existingUserByUsername = await User.findOne({ username });
-      if (existingUserByUsername) return res.status(400).json({ 
-        message: "Username already in use" });
-  
-      // Validate role
-      const roleLower = role.toLowerCase();
-      const allowedRoles = ['agent', 'user'];
-  
-      if (!allowedRoles.includes(roleLower)) {
-        return res.status(400).json({ message: "Role must be 'agent' or 'user'" });
-      }
-  
-      // Hash password
-      const hashedPassword = await bcrypt.hash(password, 12);
-  
-      // Create new user
-      const newUser = new User({ username, email, password: hashedPassword, role: roleLower });
-      await newUser.save();
-  
-      return res.status(201).json({
-        message: "User account created successfully",
-        user: {
-          id: newUser._id,
-          username: newUser.username,
-          email: newUser.email,
-          role: newUser.role
-        }
-      });
-  
-    } catch (error) {
-      res.status(500).json({ message: error.message });
-    }
-  });
+app.post("/sign-up", validateRegister, handleUserRegistration);
   
 
-//Confirm the signup with Login
+//Confirm the signup with Login for testing
 
-app.post("/login", async (req, res) => {
-    try {
-      const { email, password } = req.body;
-  
-      // Validate input
-      if (!email || !password) {
-        return res.status(400).json({ message: "Please provide email and password" });
-      }
-  
-      // Find user
-      const user = await User.findOne({ email });
-      if (!user) return res.status(400).json({ message: "Invalid email or password" });
-  
-      // Compare password
-      const isMatch = await bcrypt.compare(password, user?.password);
-      if (!isMatch) return res.status(400).json({ message: "Invalid email or password" });
-  
-      // Generate tokens
-      const accessToken = jwt.sign(
-        { id: user?._id, role: user?.role },
-        process.env.ACCESS_TOKEN,
-        { expiresIn: "15m" }
-      );
-  
-      const refreshToken = jwt.sign(
-        { id: user?._id },
-        process.env.REFRESH_TOKEN,
-        { expiresIn: "30d" }
-      );
-  
-      // Send tokens in response body
-      res.status(200).json({
-        message: "Login successful",
-        user: {
-          id: user?._id,
-          username: user?.username,
-          email: user?.email,
-          role: user?.role,
-        },
-      });
-  
-    } catch (error) {
-      res.status(500).json({ message: error.message });
-    }
-  });
-  
+app.post('/login', async (req, res) => {
+  const { email, password } = req.body;
+
+  // Find user by email
+  const user = await User.findOne({ email });
+  if (!user) return res.status(401).json({ message: 'Invalid credentials' });
+
+  // Use bcrypt to compare the plain password with hashed password
+  const isMatch = await bcrypt.compare(password, user.password);
+  if (!isMatch) return res.status(401).json({ message: 'Invalid credentials' });
+
+  // Generate JWT token
+  const token = jwt.sign(
+    { userId: user._id, role: user.role },
+    process.env.ACCESS_TOKEN,
+    { expiresIn: '1h' }
+  );
+
+  res.json({ token });
+});  
 
 
 
 //  Milestone 1.2: Agents can add new property listings
 app.post("/properties", async (req, res) => {
     try {
-      const { title, price, location, agentId, listingType } = req.body;
+      const { title, price, location, agentId, listingType, image, description } = req.body;
   
       // Check required fields
       if (!title || !price || !location || !agentId || !listingType) {
@@ -142,7 +75,7 @@ app.post("/properties", async (req, res) => {
       // Validate listingType
       const validTypes = ['sale', 'lease', 'rent'];
       if (!validTypes.includes(listingType.toLowerCase())) {
-        return res.status(400).json({ message: "listingType must be either 'sale','lease'or 'rent" });
+        return res.status(400).json({ message: "listing Type must be either 'sale','lease' or 'rent'" });
       }
   
       // Check if agent exists and has role 'agent'
@@ -161,7 +94,9 @@ app.post("/properties", async (req, res) => {
         price,
         location,
         agent: agentId,
-        listingType: listingType.toLowerCase()
+        listingType: listingType.toLowerCase(),
+        image,        
+        description,  
       });
   
       await newProperty.save();
@@ -177,13 +112,77 @@ app.post("/properties", async (req, res) => {
   
 
 
-  //fetching all signup users
-//   app.get("/users", async (req, res) => {
-//     try {
-//       const users = await User.find({}, "-password"); // Exclude password field
-//       res.status(200).json(users);
-//     } catch (error) {
-//       res.status(500).json({ message: error.message });
-//     }
-//   });
+//************ * today/
+
+app.post("/forgot-password", async (req, res) => {
+  const { email, userName } = req.body;
+
+  // let user
+
+  // if(email){
+  //     const user = await Auth.findOne({ email })
+  // }
+  // if(userName){
+  //     const user = await Auth.findOne({ userName })
+  // }
+
+  const user = await User.findOne({ email });
+
+
+  if (!user) {
+    return res.status(404).json({ message: "User not found." });
+  }
+
+  //   Send the user an email with their token
+
+  const accessToken = await jwt.sign(
+    {user},
+    `${process.env.ACCESS_TOKEN}`,
+    { expiresIn: "5m"}
+
+  )
+
+  await sendForgotPasswordEmail(email, accessToken)
+
+  // Send OTP
+
+  res.status(200).json({ message: "Please check your email inbox" });
+});
+
+app.patch("/reset-password",  authorization, async (req, res )=>{
+
+    const { password } = req.body
+
+    const user = await User.findOne({ email: req.user.email })
+
+    if(!user){
+        return res.status(404).json({message: "User account not found!"})
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 12)
+
+    user.password = hashedPassword
+
+    await user.save()
+
+    res.status(200).json({message: "Password reste successful."})
+
+})
+
+app.get("/all-users", authorization, handleGetAllUsers)
+
+//Milestone 2: Browsing & Saving Properties
+
+// Save a property (protected)
+app.post('/users/:userId/properties/:propertyId/save', authorizeUser, saveProperty);
+
+// Unsave a property (protected)
+app.delete('/users/:userId/properties/:propertyId/unsave', authorizeUser, unsaveProperty);
+
+// Route to get all properties
+app.get('/properties', authorizeUser, getAllProperties);
+
+// Route to get a single property by ID
+app.get('/properties/:id', authorizeUser, getPropertyById);
+
   

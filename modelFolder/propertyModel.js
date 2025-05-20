@@ -23,6 +23,14 @@ const propertySchema = new mongoose.Schema(
       enum: ['sale', 'lease', 'rent'],
       required: true,
     },
+    description: {
+      type: String,
+      default: "",
+    },
+    image: {
+      type: String,
+      default: "",
+    },
   },
   { timestamps: true }
 );
