@@ -42,7 +42,7 @@ const authorization = async (req, res, next)=>{
         return res.status(401).json({message: "Please login!"})
     }
 
-    const user = await User.findById(decoded.id)
+    const user = await User.findById(decoded.userId);
 
     if(!user){
         return res.status(404).json({message: "User account does not exist"})

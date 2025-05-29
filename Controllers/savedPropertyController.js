@@ -1,11 +1,10 @@
-// controllerFolder/savedPropertyController.js
-
 const SavedProperty = require('../modelFolder/savedPropertyModel');
 const Property = require('../modelFolder/propertyModel');
+
 const User = require('../modelFolder/userModel');
 
 // Save a property for a user
-exports.saveProperty = async (req, res) => {
+const saveProperty = async (req, res) => {
   try {
     const { propertyId, userId } = req.params;
 
@@ -32,7 +31,7 @@ exports.saveProperty = async (req, res) => {
 };
 
 // Unsave a property for a user
-exports.unsaveProperty = async (req, res) => {
+const unsaveProperty = async (req, res) => {
   try {
     const { propertyId, userId } = req.params;
 
@@ -45,4 +44,34 @@ exports.unsaveProperty = async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
+};
+
+// Get all saved properties for a user
+const getSavedProperties = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const savedProperties = await SavedProperty.find({ user: userId }).populate('property');
+
+    // Extract the actual property objects
+    const properties = savedProperties.map(item => item.property);
+
+    res.status(200).json({
+      message: "Saved properties fetched successfully",
+      total: properties.length,
+      properties
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+
+
+
+module.exports = {
+  saveProperty,
+  unsaveProperty,
+  getSavedProperties
 };
