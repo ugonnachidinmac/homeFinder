@@ -103,6 +103,8 @@ const handleLogin = async (req, res) => {
 }
 
 
+
+// Milestone 3: Enforce permissions: only agents can create.
 const handleCreateProperties = async (req, res) => {
     try {
       const { title, price, location, agentId, listingType, image, description } = req.body;
@@ -200,6 +202,7 @@ const handleResetPassword = async (req, res )=>{
 }
 
 
+// Milestone 3 Adding property filtering
 const handleFilteredProperties = async (req, res) => {
   try {
     let { location, minPrice, maxPrice, listingType, agentUsername } = req.query;

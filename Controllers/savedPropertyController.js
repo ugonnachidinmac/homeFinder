@@ -46,6 +46,7 @@ const unsaveProperty = async (req, res) => {
   }
 };
 
+//Milestone 3: GET saved listings for a user.
 // Get all saved properties for a user
 const getSavedProperties = async (req, res) => {
   try {
@@ -66,8 +67,6 @@ const getSavedProperties = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
-
-
 
 
 module.exports = {
