@@ -21,4 +21,4 @@ mongoose.connect(process.env.MONGODB_URL)
   .catch(err => console.error("MongoDB connection failed:", err));
 
 // Mount all routes
-app.use("/", routes);
+app.use("/api", routes);
