@@ -20,5 +20,10 @@ mongoose.connect(process.env.MONGODB_URL)
   })
   .catch(err => console.error("MongoDB connection failed:", err));
 
+//Build Endpoint Message
+app.get("/", (req, res)=>{
+  res.status(200).json({message: "Welcome to Homefinder Backend Web App"})
+})
+
 // Mount all routes here
 app.use("/api", routes);
